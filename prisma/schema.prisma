@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  bookings     Booking[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([createdAt])
+}
+
+model DiagnosticCentre {
+  id        String           @id @default(cuid())
+  name      String
+  location  String
+  tests     DiagnosticTest[]
+  bookings  Booking[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([name])
+  @@index([location])
+  @@unique([name, location])
+}
+
+model DiagnosticTest {
+  id        String           @id @default(cuid())
+  name      String
+  price     Decimal          @db.Decimal(10, 2)
+  centreId  String
+  centre    DiagnosticCentre @relation(fields: [centreId], references: [id], onDelete: Restrict)
+  bookings  Booking[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([centreId])
+  @@index([name])
+  @@unique([name, centreId])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  userId        String
+  testId        String
+  centreId      String
+  appointmentAt DateTime
+  amount        Decimal       @db.Decimal(10, 2)
+  status        BookingStatus @default(PENDING)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  test          DiagnosticTest @relation(fields: [testId], references: [id], onDelete: Restrict)
+  centre        DiagnosticCentre @relation(fields: [centreId], references: [id], onDelete: Restrict)
+  payment       Payment?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([testId])
+  @@index([centreId])
+  @@index([appointmentAt])
+  @@index([status])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  bookingId String        @unique
+  eventId   String        @unique
+  amount    Decimal       @db.Decimal(10, 2)
+  status    PaymentStatus
+  booking   Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  createdAt DateTime      @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
